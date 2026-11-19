@@ -1,0 +1,6 @@
+{
+  "name": "أذكاري",
+  "description": "تطبيق أذكار يومية وعداد تسبيح وتنبيهات مخصصة مع المزامنة السحابية والعمل بدون إنترنت بثلاث لغات.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

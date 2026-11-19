@@ -1,0 +1,211 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- GLOBAL PRIMITIVE HELPERS ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidTimestamp(ts) {
+      return ts is timestamp && ts <= request.time;
+    }
+
+    // --- ENTITY VALIDATION BLUEPRINTS ---
+    function isValidUserSettings(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.languageCode is string && data.languageCode in ['ar', 'en', 'fr'] &&
+             data.themeMode is string && data.themeMode in ['system', 'light', 'dark'] &&
+             data.fontScale is string && data.fontScale in ['small', 'medium', 'large', 'xlarge'] &&
+             data.hapticEnabled is bool &&
+             data.favoriteIds is list && data.favoriteIds.size() <= 200 &&
+             (data.favoriteIds.size() == 0 || data.favoriteIds[0] is string) &&
+             data.tasbihTarget is int && data.tasbihTarget >= 1 && data.tasbihTarget <= 10000 &&
+             data.tasbihPhraseId is string && data.tasbihPhraseId.size() >= 1 && data.tasbihPhraseId.size() <= 100 &&
+             data.tasbihCurrentCount is int && data.tasbihCurrentCount >= 0 && data.tasbihCurrentCount <= 1000000 &&
+             data.tasbihTotalLifetime is int && data.tasbihTotalLifetime >= 0 && data.tasbihTotalLifetime <= 100000000 &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidCustomDhikr(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 120 &&
+             data.arabicText is string && data.arabicText.size() >= 1 && data.arabicText.size() <= 1500 &&
+             data.translation is string && data.translation.size() <= 1500 &&
+             data.category is string && data.category.size() >= 1 && data.category.size() <= 40 &&
+             data.targetCount is int && data.targetCount >= 1 && data.targetCount <= 1000 &&
+             data.favorited is bool &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidDailyLog(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.dateKey is string && data.dateKey.size() >= 8 && data.dateKey.size() <= 16 &&
+             data.athkarCompletedCount is int && data.athkarCompletedCount >= 0 && data.athkarCompletedCount <= 10000 &&
+             data.tasbihCount is int && data.tasbihCount >= 0 && data.tasbihCount <= 1000000 &&
+             data.completedDhikrIds is list && data.completedDhikrIds.size() <= 200 &&
+             (data.completedDhikrIds.size() == 0 || data.completedDhikrIds[0] is string) &&
+             data.completedCategories is list && data.completedCategories.size() <= 20 &&
+             (data.completedCategories.size() == 0 || data.completedCategories[0] is string) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidReminder(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 100 &&
+             data.categoryId is string && data.categoryId.size() >= 1 && data.categoryId.size() <= 40 &&
+             data.hour is int && data.hour >= 0 && data.hour <= 23 &&
+             data.minute is int && data.minute >= 0 && data.minute <= 59 &&
+             data.enabled is bool &&
+             data.repeatDays is list && data.repeatDays.size() <= 7 &&
+             (data.repeatDays.size() == 0 || data.repeatDays[0] is int) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    // --- USER-SCOPED SUBCOLLECTIONS ---
+    match /users/{userId} {
+      allow read, write: if false;
+
+      match /settings/{settingId} {
+        allow get: if isOwner(userId) && isValidId(settingId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                         isValidId(settingId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'languageCode', 'themeMode', 'fontScale',
+                           'hapticEnabled', 'favoriteIds', 'tasbihTarget',
+                           'tasbihPhraseId', 'tasbihCurrentCount', 'tasbihTotalLifetime',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'languageCode', 'themeMode', 'fontScale',
+                           'hapticEnabled', 'favoriteIds', 'tasbihTarget',
+                           'tasbihPhraseId', 'tasbihCurrentCount', 'tasbihTotalLifetime',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidUserSettings(incoming(), userId);
+        allow update: if isOwner(userId) &&
+                         isValidId(settingId) &&
+                         isValidUserSettings(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'languageCode', 'themeMode', 'fontScale',
+                           'hapticEnabled', 'favoriteIds', 'tasbihTarget',
+                           'tasbihPhraseId', 'tasbihCurrentCount', 'tasbihTotalLifetime',
+                           'updatedAt'
+                         ]);
+        allow delete: if isOwner(userId) && isValidId(settingId);
+      }
+
+      match /customAthkar/{dhikrId} {
+        allow get: if isOwner(userId) && isValidId(dhikrId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                         isValidId(dhikrId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'title', 'arabicText', 'translation',
+                           'category', 'targetCount', 'favorited',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'title', 'arabicText', 'translation',
+                           'category', 'targetCount', 'favorited',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidCustomDhikr(incoming(), userId);
+        allow update: if isOwner(userId) &&
+                         isValidId(dhikrId) &&
+                         isValidCustomDhikr(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'title', 'arabicText', 'translation',
+                           'category', 'targetCount', 'favorited', 'updatedAt'
+                         ]);
+        allow delete: if isOwner(userId) && isValidId(dhikrId);
+      }
+
+      match /dailyLogs/{dateKey} {
+        allow get: if isOwner(userId) && isValidId(dateKey);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                         isValidId(dateKey) &&
+                         incoming().keys().hasAll([
+                           'userId', 'dateKey', 'athkarCompletedCount', 'tasbihCount',
+                           'completedDhikrIds', 'completedCategories',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'dateKey', 'athkarCompletedCount', 'tasbihCount',
+                           'completedDhikrIds', 'completedCategories',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidDailyLog(incoming(), userId);
+        allow update: if isOwner(userId) &&
+                         isValidId(dateKey) &&
+                         isValidDailyLog(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().dateKey == existing().dateKey &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'athkarCompletedCount', 'tasbihCount',
+                           'completedDhikrIds', 'completedCategories', 'updatedAt'
+                         ]);
+        allow delete: if isOwner(userId) && isValidId(dateKey);
+      }
+
+      match /reminders/{reminderId} {
+        allow get: if isOwner(userId) && isValidId(reminderId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                         isValidId(reminderId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'title', 'categoryId', 'hour', 'minute',
+                           'enabled', 'repeatDays', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'title', 'categoryId', 'hour', 'minute',
+                           'enabled', 'repeatDays', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidReminder(incoming(), userId);
+        allow update: if isOwner(userId) &&
+                         isValidId(reminderId) &&
+                         isValidReminder(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'title', 'categoryId', 'hour', 'minute',
+                           'enabled', 'repeatDays', 'updatedAt'
+                         ]);
+        allow delete: if isOwner(userId) && isValidId(reminderId);
+      }
+    }
+  }
+}

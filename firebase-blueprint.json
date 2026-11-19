@@ -1,0 +1,134 @@
+{
+  "entities": {
+    "UserSettings": {
+      "title": "UserSettings",
+      "description": "User preferences, cloud backup settings, favorite dhikr IDs, and Tasbih counter state.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Firebase Auth UID." },
+        "languageCode": { "type": "string", "enum": ["ar", "en", "fr"], "description": "Active UI language code." },
+        "themeMode": { "type": "string", "enum": ["system", "light", "dark"], "description": "Active visual theme mode." },
+        "fontScale": { "type": "string", "enum": ["small", "medium", "large", "xlarge"], "description": "Preferred Athkar text size." },
+        "hapticEnabled": { "type": "boolean", "description": "Whether haptic vibration feedback is enabled." },
+        "favoriteIds": { "type": "array", "description": "Bounded list of favorited dhikr IDs." },
+        "tasbihTarget": { "type": "integer", "description": "Target count per Tasbih cycle (e.g. 33, 99, 100)." },
+        "tasbihPhraseId": { "type": "string", "description": "Currently selected Tasbih phrase identifier." },
+        "tasbihCurrentCount": { "type": "integer", "description": "Current cycle count in Tasbih." },
+        "tasbihTotalLifetime": { "type": "integer", "description": "Total lifetime Tasbih count." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp set via FieldValue.serverTimestamp()." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp set via FieldValue.serverTimestamp()." }
+      },
+      "required": [
+        "userId",
+        "languageCode",
+        "themeMode",
+        "fontScale",
+        "hapticEnabled",
+        "favoriteIds",
+        "tasbihTarget",
+        "tasbihPhraseId",
+        "tasbihCurrentCount",
+        "tasbihTotalLifetime",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "CustomDhikr": {
+      "title": "CustomDhikr",
+      "description": "User-authored custom dhikr or supplication.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Firebase Auth UID." },
+        "title": { "type": "string", "description": "Title of the custom dhikr." },
+        "arabicText": { "type": "string", "description": "Primary dhikr text." },
+        "translation": { "type": "string", "description": "Optional translation or note." },
+        "category": { "type": "string", "description": "Category identifier." },
+        "targetCount": { "type": "integer", "description": "Target repetition count." },
+        "favorited": { "type": "boolean", "description": "Whether marked as favorite." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp set via FieldValue.serverTimestamp()." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp set via FieldValue.serverTimestamp()." }
+      },
+      "required": [
+        "userId",
+        "title",
+        "arabicText",
+        "translation",
+        "category",
+        "targetCount",
+        "favorited",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "DailyLog": {
+      "title": "DailyLog",
+      "description": "Daily Athkar and Tasbih progress log keyed by yyyy-MM-dd.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Firebase Auth UID." },
+        "dateKey": { "type": "string", "description": "Date string yyyy-MM-dd." },
+        "athkarCompletedCount": { "type": "integer", "description": "Number of Athkar completed on this date." },
+        "tasbihCount": { "type": "integer", "description": "Number of Tasbih taps recorded on this date." },
+        "completedDhikrIds": { "type": "array", "description": "Bounded list of dhikr IDs completed today." },
+        "completedCategories": { "type": "array", "description": "Bounded list of category IDs completed today." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp set via FieldValue.serverTimestamp()." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp set via FieldValue.serverTimestamp()." }
+      },
+      "required": [
+        "userId",
+        "dateKey",
+        "athkarCompletedCount",
+        "tasbihCount",
+        "completedDhikrIds",
+        "completedCategories",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ReminderSchedule": {
+      "title": "ReminderSchedule",
+      "description": "Custom Athkar notification reminder schedule.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Firebase Auth UID." },
+        "title": { "type": "string", "description": "Reminder display label." },
+        "categoryId": { "type": "string", "description": "Associated Athkar category ID." },
+        "hour": { "type": "integer", "description": "Hour of day (0-23)." },
+        "minute": { "type": "integer", "description": "Minute of hour (0-59)." },
+        "enabled": { "type": "boolean", "description": "Whether the reminder is active." },
+        "repeatDays": { "type": "array", "description": "Days of week (1=Mon..7=Sun)." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp set via FieldValue.serverTimestamp()." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp set via FieldValue.serverTimestamp()." }
+      },
+      "required": [
+        "userId",
+        "title",
+        "categoryId",
+        "hour",
+        "minute",
+        "enabled",
+        "repeatDays",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/settings/{settingId}": {
+      "schema": { "$ref": "#/entities/UserSettings" },
+      "description": "User preferences, favorites, Tasbih state, and cloud settings backup."
+    },
+    "/users/{userId}/customAthkar/{dhikrId}": {
+      "schema": { "$ref": "#/entities/CustomDhikr" },
+      "description": "User-created custom Athkar."
+    },
+    "/users/{userId}/dailyLogs/{dateKey}": {
+      "schema": { "$ref": "#/entities/DailyLog" },
+      "description": "Per-day Athkar and Tasbih progress logs for streaks and charts."
+    },
+    "/users/{userId}/reminders/{reminderId}": {
+      "schema": { "$ref": "#/entities/ReminderSchedule" },
+      "description": "User-configured daily Athkar reminder schedules."
+    }
+  }
+}
