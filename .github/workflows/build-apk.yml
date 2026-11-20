@@ -13,13 +13,11 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Checkout code 
+        uses: actions/checkout@v4 
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
-      - name: Accept Android licenses
-        run: yes | sdkmanager --licenses || true
         with:
           distribution: 'temurin'
           java-version: '17'
