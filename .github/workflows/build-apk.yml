@@ -10,7 +10,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 40
 
     steps:
       - name: Checkout code
@@ -22,32 +22,16 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
-        with:
-          cache-read-only: false
 
       - name: Make gradlew executable
-        run: |
-          chmod +x ./gradlew
-          ls -la   # للتأكد من وجود الملفات
-
-      - name: Check project structure
-        run: |
-          echo "=== Project root ==="
-          ls -la
-          echo "=== Looking for gradlew ==="
-          find . -name "gradlew" -type f
-          echo "=== Looking for settings.gradle* ==="
-          find . -name "settings.gradle*" -type f
+        run: chmod +x ./gradlew
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace --info
+        run: ./gradlew assembleDebug --stacktrace
         env:
-          GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4g"
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.workers.max=2"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
